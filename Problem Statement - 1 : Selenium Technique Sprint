@@ -1,1 +1,164 @@
+package tests;
 
+import io.github.bonigarcia.wdm.WebDriverManager;
+import org.openqa.selenium.*;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.support.ui.*;
+import org.testng.Assert;
+import org.testng.ITestResult;
+import org.testng.annotations.*;
+
+import java.io.File;
+import java.io.IOException;
+import java.time.Duration;
+import org.apache.commons.io.FileUtils;
+
+public class SeleniumSprintChallenge {
+    WebDriver driver;
+    WebDriverWait wait;
+    String baseUrl = "https://demoqa.com/";
+
+    @BeforeClass
+    public void setup() {
+        WebDriverManager.chromedriver().setup();
+        driver = new ChromeDriver();
+        driver.manage().window().maximize();
+        wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+        driver.get(baseUrl);
+    }
+
+    @AfterMethod
+    public void takeScreenshotOnFailure(ITestResult result) {
+        if (!result.isSuccess()) {
+            TakesScreenshot ts = (TakesScreenshot) driver;
+            File src = ts.getScreenshotAs(OutputType.FILE);
+            File dest = new File("C:\\Screenshots" + result.getName() + ".png");
+            try {
+                FileUtils.copyFile(src, dest);
+                System.out.println("Screenshot saved: " + dest.getAbsolutePath());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    @AfterClass
+    public void tearDown() {
+        if (driver != null) {
+            driver.quit();
+        }
+    }
+
+    // ================= Task 1 =================
+    @Test(priority = 1)
+    public void testFormsAndBasicElements() {
+        // Navigate to Elements → Text Box
+        driver.findElement(By.xpath("//h5[text()='Elements']")).click();
+        driver.findElement(By.xpath("//span[text()='Text Box']")).click();
+
+        // Fill form
+        driver.findElement(By.id("userName")).sendKeys("Suman shekhar");
+        driver.findElement(By.id("userEmail")).sendKeys("sumanshe@gmail.com");
+        driver.findElement(By.id("currentAddress")).sendKeys("123 NGRH");
+        driver.findElement(By.id("permanentAddress")).sendKeys("456 BBSR");
+
+        driver.findElement(By.id("submit")).click();
+
+        // Navigate to Radio Button
+        driver.findElement(By.xpath("//span[text()='Radio Button']")).click();
+        driver.findElement(By.xpath("//label[@for='impressiveRadio']")).click();
+
+        // Assert selection
+        String resultText = driver.findElement(By.className("text-success")).getText();
+        Assert.assertEquals(resultText, "Impressive");
+    }
+
+    // ================= Task 2 =================
+    @Test(priority = 2)
+    public void testWidgetsDropdownAndDatePicker() {
+        driver.navigate().to(baseUrl);
+        driver.findElement(By.xpath("//h5[text()='Widgets']")).click();
+        driver.findElement(By.xpath("//span[text()='Select Menu']")).click();
+
+        // Standard dropdown
+        WebElement titleDropdown = driver.findElement(By.id("selectOne"));
+        titleDropdown.click();
+        driver.findElement(By.xpath("//div[text()='Dr.']")).click();
+
+        // Dynamic dropdown
+        WebElement optionDropdown = driver.findElement(By.id("react-select-2-input"));
+        optionDropdown.sendKeys("Group 1, option 1");
+        optionDropdown.sendKeys(Keys.ENTER);
+
+        // Date picker
+        driver.findElement(By.xpath("//span[text()='Date Picker']")).click();
+        WebElement dateInput = driver.findElement(By.id("datePickerMonthYearInput"));
+        dateInput.click();
+
+        // Pick 15th of next month
+        driver.findElement(By.cssSelector(".react-datepicker__navigation--next")).click();
+        driver.findElement(By.xpath("//div[contains(@class,'react-datepicker__day') and text()='15']")).click();
+    }
+
+    // ================= Task 3 =================
+    @Test(priority = 3)
+    public void testAlertsWindowsIframes() {
+        driver.navigate().to(baseUrl);
+        driver.findElement(By.xpath("//h5[text()='Alerts, Frame & Windows']")).click();
+
+        // Window Handling
+        driver.findElement(By.xpath("//span[text()='Browser Windows']")).click();
+        String parent = driver.getWindowHandle();
+        driver.findElement(By.id("tabButton")).click();
+
+        for (String handle : driver.getWindowHandles()) {
+            if (!handle.equals(parent)) {
+                driver.switchTo().window(handle);
+                String text = driver.findElement(By.id("sampleHeading")).getText();
+                Assert.assertTrue(text.contains("This is a sample page"));
+                driver.close();
+            }
+        }
+        driver.switchTo().window(parent);
+
+        // Alert Handling
+        driver.findElement(By.xpath("//span[text()='Alerts']")).click();
+        driver.findElement(By.id("alertButton")).click();
+        wait.until(ExpectedConditions.alertIsPresent());
+        driver.switchTo().alert().accept();
+
+        driver.findElement(By.id("confirmButton")).click();
+        wait.until(ExpectedConditions.alertIsPresent());
+        driver.switchTo().alert().dismiss();
+        String confirmMsg = driver.findElement(By.id("confirmResult")).getText();
+        Assert.assertEquals(confirmMsg, "You selected Cancel");
+
+        // IFrame Handling
+        driver.findElement(By.xpath("//span[text()='Frames']")).click();
+        driver.switchTo().frame("frame1");
+        String frameText = driver.findElement(By.id("sampleHeading")).getText();
+        Assert.assertEquals(frameText, "This is a sample page");
+        driver.switchTo().defaultContent();
+    }
+
+    // ================= Task 4 =================
+    @Test(priority = 4)
+    public void testJavaScriptExecutorAndScreenshots() {
+        driver.navigate().to(baseUrl);
+        driver.findElement(By.xpath("//h5[text()='Elements']")).click();
+        driver.findElement(By.xpath("//span[text()='Buttons']")).click();
+
+        JavascriptExecutor js = (JavascriptExecutor) driver;
+
+        // Scroll into view
+        WebElement clickMeBtn = driver.findElement(By.xpath("//button[text()='Click Me']"));
+        js.executeScript("arguments[0].scrollIntoView(true);", clickMeBtn);
+
+        // JS Click
+        js.executeScript("arguments[0].click();", clickMeBtn);
+
+        // Verify success message
+        String msg = driver.findElement(By.id("dynamicClickMessage")).getText();
+        Assert.assertTrue(msg.contains("You have done a dynamic click"));
+    }
+}
